@@ -24,7 +24,7 @@ class Server {
     static std::string password;
     static std::string name;
 
-    static std::deque<int> fds;
+    static std::deque<int> fds; // oluşturulan socket fdlerini tutar
     static std::deque<Channel> channels;
     static std::deque<User> users;
 

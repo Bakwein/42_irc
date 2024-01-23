@@ -6,7 +6,7 @@ std::string Server::password;
 std::string Server::name = "SKYCHAT";
 std::deque<int> Server::fds; //socket fdlerinin(socket tanımlayıcılarının)tutulduğu deque 
 std::deque<Channel> Server::channels; // oluşturulan chanellerın tutulduğu deque
-std::deque<User> Server::users; // ana socket harip digerleri yani clientlarin tutuldugu deque
+std::deque<User> Server::users; // ana socket hariç digerlerinin yani clientlarin tutuldugu deque
 sockaddr_in Server::addr;
 /*
 struct sockaddr_in {
@@ -32,18 +32,22 @@ sin_port: Bu alan, bağlantı noktası numarasını taşır. Port numarası,
 ağ üzerindeki bir hizmetin belirlenmesinde kullanılır.
 HTONS(Host to network short);
 16-bitlik bir tamsayı değerini (örneğin, bir port numarası) host (bilgisayar) tarafından kullanılan byte sırasından ağ tarafından kullanılan byte sırasına dönüştürmek için kullanılır.Bu, farklı bilgisayar mimarileri veya ağ protokollerinin farklı byte sıralama (endianness) kurallarını dikkate almayı sağlar.
-
 (bu paragraf çok önemli değil)
 //Bilgisayar sistemlerinde iki temel byte sıralama türü bulunur: büyük 
 //uçtan küçük uca (big-endian) ve küçük uçtan büyük uca (little-endian).
 //Ağ protokollerinin genellikle büyük uçtan küçük uca sıralamayı 
 //kullanmasıyla, host tarafındaki bir bilgisayarın byte sıralamasını 
 //uygun hale getirmek önemlidir.
+Bilgisayarlar, byte'ları farklı sıralarda saklar. Bazıları (big-endian sistemler) en önemli byte'ı (most significant byte) önce saklar, bazıları (little-endian sistemler) ise en az önemli byte'ı (least significant byte) önce saklar. Ancak, ağ protokolleri genellikle big-endian byte sırasını kullanır.
+Bu nedenle, bir port numarasını bir soket adres yapısına atarken, htons() fonksiyonunu kullanarak port numarasını host byte sırasından ağ byte sırasına dönüştürmeniz gerekir. Bu, farklı byte sırasına sahip sistemler arasında ağ iletişiminin düzgün çalışmasını sağlar.
 
 
 sin_addr: Bu alan, struct in_addr tipinde bir yapıdır ve IPv4 adresini 
 taşır.
 bir sunucu soketinin bağlandığı adresi belirlerken kullanılır ve "INADDR_ANY" sabiti, herhangi bir ağ arayüzünden gelen bağlantıları dinlemek için kullanılır.Bu ifade, sunucunun tüm ağ arabirimlerinden gelen bağlantıları kabul etmesini sağlar.sunucunun bağlandığı adresin "herhangi bir ağ arayüzü" olmasını sağlar. Bu, sunucunun tüm ağ arayüzlerini dinleme konusunda esnek olmasını sağlar ve gelen bağlantıları herhangi bir ağ arayüzünden kabul etmesine izin verir.
+Bir IP adresini sin_addr.s_addr'a atamak için, inet_addr() fonksiyonunu kullanabilirsiniz. Bu fonksiyon, bir dize olarak verilen bir IP adresini uygun biçimde dönüştürür. Örneğin:
+Server::addr.sin_addr.s_addr = inet_addr("192.168.1.1");
+Bu kod satırı, sunucunun yalnızca 192.168.1.1 IP adresinden gelen bağlantıları kabul etmesini sağlar.
 
 sin_zero: Bu alan genellikle kullanılmaz ve sadece boyut dengesi için 
 ayrılmıştır.(KULLANMIYORUZ!)

@@ -39,6 +39,10 @@ void Server::createSocket(void) {
 
         -SOL_SOCKET(level number!): Bu, seçeneğin tanımlandığı seviyedir.Bu belirtici, ayarlanacak veya alınacak seçeneğin soket seviyesinde olduğunu belirtir. Yani, bu seçenekler genel soket seçenekleridir ve belirli bir protokol ile ilgili değillerdir.Örneğin, SO_REUSEADDR seçeneği SOL_SOCKET seviyesinde bir seçenektir.
 
+        Eğer SO_REUSEADDR seçeneği ayarlanmazsa ve bir program bir soketi kapattıktan sonra hemen aynı adresi kullanarak yeni bir soket açmaya çalışırsa, "address already in use" (adres zaten kullanımda) hatası alabilir. Bu, özellikle bir sunucu programını yeniden başlatmaya çalıştığınızda sorun olabilir.
+
+        SO_REUSEADDR seçeneği, bir soketin adresini yeniden kullanabilme yeteneğini sağlar. Bu, bir sunucunun çökmesi veya yeniden başlatılması durumunda hızlı bir şekilde yeniden başlamasını sağlar, çünkü aynı adres hemen yeniden kullanılabilir.
+
         -optname: Ayarlamak istediğiniz seçeneğin adıdır. Bu, belirli bir seviyede belirli bir soket seçeneğini ifade eder. Örneğin, SO_REUSEADDR seçeneği, aynı adresi ve portu kullanarak birden çok soketin bağlanmasına izin verir.
 
         -optval: Ayarlamak istediğiniz seçeneğin değerini içeren bir bellek adresidir. Bu, optname ile belirtilen seçeneğin değerini taşır.
@@ -129,7 +133,7 @@ void Server::selectSocket(void) {
         */
 
         select_output = select(FD_SETSIZE, &Server::read_fd_set, NULL, NULL, NULL);
-        //sadece read_fd_sete eklediğimiz fdleri izliyoruz.
+        //sadece read_fd_sete eklediğimiz fdleri izliyoruz. Çıktıda hazır olan fdler read_fd_sette bulunur
         /*
         int select(int nfds, fd_set *readfds, fd_set *writefds, fd_set *exceptfds, struct timeval *timeout);
         
@@ -159,8 +163,7 @@ void Server::selectSocket(void) {
         {
 
             newConnection(); 
-            //BUNU TAM ANLAMADIM - bu sadece 1 kere mi giriyor yani server socketi sadece ilk kısımda oluştuğunda mı giriyor?
-            //CEVAP -> selectte set elemanlarından biri eğer set edilirse girdi bekleyen select isleminden ilerler ve alta devam eder buraya da sadece ilk elemanda yani main server soketinde girdi olursa girer. bu da yeni client anlamına gelmektedir
+            //selectten sonra fd_read veri yapısı güncellenir. Bu yapıda server fdsi varsa bu yeni bir client'in sisteme giriş yaptığı anlamaına gelir. bu durumda da new connection fonk.'u içine girer.
             continue;
         }
         /*
@@ -220,7 +223,7 @@ void Server::readInput(User &user) {
 
     fcntl(user.getFd(), F_SETFL, O_NONBLOCK); //kullanıcının soketinin dosya tanımlayıcısını bloklamayan moda ayarlamak için fcntl fonksiyonunu kullanır. Bu, recv fonksiyonunun (daha sonra kullanılır) okunacak veri yoksa bloke olmayacağı anlamına gelir; hemen geri döner. O_NONBLOCK kullandık ki blocklanma olmasın tüm fdleri ayarlayabilsin.
     bzero(buffer, 512);
-    output = recv(user.getFd(), buffer, 512, 0); // Bu satır, kullanıcının soketinden tampona veri okumak için recv fonksiyonunu kullanır. recv fonksiyonu 512 bayta kadar veri okuyacaktır (tamponun boyutu). recv'nin dönüş değeri (output'ta saklanır) gerçekte okunan bayt sayısıdır veya bir hata oluştuysa -1'dir. Soket bloklama yapmayan modda olduğundan, okunacak veri yoksa recv -1 değerini döndürür ve hata kodunu EAGAIN veya EWOULDBLOCK olarak ayarlar.
+    output = recv(user.getFd(), buffer, 512, 0); // Bu satır, kullanıcının soketinden tampona veri okumak için recv fonksiyonunu kullanır. recv fonksiyonu 512 bayta kadar veri okuyacaktır (tamponun boyutu). >0 -> return donen byte sayisi , -1 -> hata . =0 => bağlantının düzgün bir şekilde kapatıldığını ve daha veri gelmeyeceği durumlarda döner
     if (output <= 0) 
     { 
         user.closeConnection();
@@ -236,11 +239,13 @@ void Server::readInput(User &user) {
     channel1 sağında gizli \n var
     */
 
+
+    //coklu komutları \n'larından ayirir ve \r'leri atar
     while (user.input.find("\n") != std::string::npos) {
         std::cout << "userrrrr :" << user.input << std::endl;
         std::string cmd = user.input.substr(0, user.input.find("\n"));
         user.input = user.input.substr(user.input.find("\n") + 1); // ilk \nden sonrasini alır
-        if (cmd.at(cmd.size() - 1) == '\r')
+        if (cmd.size() > 1 && cmd.at(cmd.size() - 1) == '\r')
             cmd = cmd.substr(0, cmd.size() - 1);
         std::cout << "KAMİL: " << cmd << std::endl;
         if (executeCommand(user, cmd)) //true durumunda fonk biter.!!!
@@ -251,7 +256,8 @@ void Server::readInput(User &user) {
 // ###Cmd functions###//
 
 void nick(User &user, std::deque<std::string> &cmd) {
-    if (cmd.size() < 2) {
+    if (cmd.size() < 2) 
+    {
         user.sendMsg(":" + Server::name + " 431 " + user.nickName + " :No nickname given\r\n");
         return;
     }
@@ -260,15 +266,18 @@ void nick(User &user, std::deque<std::string> &cmd) {
         return;
     }
     for (std::deque<User>::iterator it = Server::users.begin(); it != Server::users.end(); it++) {
-        if (it->getNickName() == cmd.at(1) && it->getFd() != user.getFd() && user.getUserName().empty()) {
+        if (it->getNickName() == cmd.at(1) && it->getFd() != user.getFd() && user.getUserName().empty()) //ayni isimli yeni kullanici eklerse yanina sayi ekler
+        {
             cmd.at(1) += std::to_string(rand() % 1000);
             user.nickName = cmd.at(1);
         }
-        if (it->getNickName() == cmd.at(1) && it->getFd() != user.getFd()) {
+        if (it->getNickName() == cmd.at(1) && it->getFd() != user.getFd()) // onceden isimli bir kullanicinin ismine var olan bir kullanici ismi verilmeye calistiginda hata verme
+        {
             user.sendMsg(":" + Server::name + " 433 " + user.nickName + ":Nickname is already in use\r\n");
             return;
         }
     }
+    //problem yoksa
     user.sendMsg(":" + user.nickName + " NICK " + cmd.at(1) + "\r\n");
     user.nickName = cmd.at(1);
 }
@@ -375,17 +384,20 @@ bool Server::executeCommand(User &user, std::string &cmd) {
     }
 
     else if (cmds.at(0) == "PASS") {
-        if (cmds.size() != 2) {
+        if (cmds.size() != 2) //boyut 2den azsa
+         {
             user.sendMsg("461 " + Server::name + " " + cmds.at(0) + " :Not Enough Parameters\r\n");
             return false;
         }
-        if (user.getIsAuth() == true) {
+        if (user.getIsAuth() == true) //zaten sifreyle giris yapilmissa sifre dogru olsa da yanlis olsa da buraya girer
+        {
             user.sendMsg("462 " + Server::name + " :Unauthorized command (already registered)\r\n");
             return false;
         }
-        if (cmds.at(1) == Server::password)
+        if (cmds.at(1) == Server::password) //giris yapilmamis ve sifre dogruysa
             user.setIsAuth(true);
-        else {
+        else  // giris yapilmamis ve sifre yanlissa program sonlanir
+        {
             user.sendMsg("464 " + Server::name + " :Password incorrect\r\n");
             user.closeConnection();
             return true;

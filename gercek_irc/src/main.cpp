@@ -3,7 +3,7 @@
 int Server::port;
 int Server::exited = 0;
 std::string Server::password;
-std::string Server::name = "Barba-Chat";
+std::string Server::name = "SkyChat";
 std::deque<int> Server::fds;
 std::deque<Channel> Server::channels;
 std::deque<User> Server::users;
@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
         port.find_first_not_of("0123456789") != std::string::npos) {
         std::cerr << "Error: invalid arguments !" << std::endl;
         return (1);
-    }
+    } //625a
 
     Server::port = stoi(port);
     Server::password = password;

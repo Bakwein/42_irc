@@ -42,7 +42,7 @@ void Server::selectSocket(void) {
         FD_ZERO(&Server::read_fd_set);
         for (size_t i = 0; i < Server::fds.size(); i++) {
             FD_SET(Server::fds[i], &Server::read_fd_set);
-        }
+        } // 1-23456-> 36
 
         select_output = select(FD_SETSIZE, &Server::read_fd_set, NULL, NULL, NULL);
 
@@ -52,7 +52,7 @@ void Server::selectSocket(void) {
         if (select_output < 0) {
             std::cerr << "Select error" << std::endl;
             return;
-        }
+        }//1-23456 -> 3
         if (FD_ISSET(Server::getServerSocketFd(), &Server::read_fd_set)) {
             newConnection();
             continue;
@@ -98,7 +98,7 @@ void Server::readInput(User &user) {
         user.closeConnection();
         return;
     }
-    user.input += buffer;
+    user.input += buffer; 
 
     while (user.input.find("\n") != std::string::npos) {
         std::string cmd = user.input.substr(0, user.input.find("\n"));
@@ -132,6 +132,7 @@ void nick(User &user, std::deque<std::string> &cmd) {
             user.sendMsg(":" + Server::name + " 433 " + user.nickName + ":Nickname is already in use\r\n");
             return;
         }
+        
     }
     user.sendMsg(":" + user.nickName + " NICK " + cmd.at(1) + "\r\n");
     user.nickName = cmd.at(1);
@@ -241,7 +242,8 @@ bool Server::executeCommand(User &user, std::string &cmd) {
         return false;
     }
 
-    else if (cmds.at(0) == "PASS") {
+    else if (cmds.at(0) == "PASS") 
+    {
         if (cmds.size() != 2) {
             user.sendMsg("461 " + Server::name + " " + cmds.at(0) + " :Not Enough Parameters\r\n");
             return false;
@@ -257,7 +259,9 @@ bool Server::executeCommand(User &user, std::string &cmd) {
             user.closeConnection();
             return true;
         }
-    } else if (!user.getIsAuth()) {
+    } 
+    else if (!user.getIsAuth()) 
+    {
         user.sendMsg(":" + Server::name + " 464 " + user.getNickName() + " :You're no authentify !\r\n");
         user.closeConnection();
         return true;

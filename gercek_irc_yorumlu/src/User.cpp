@@ -40,9 +40,7 @@ void User::quitAllChannels(void) {
         for (std::deque<User *>::iterator user = it->users.begin(); user != it->users.end(); user++) {
             if ((*user)->getFd() != this->getFd()) continue;
             it->sendMsg(":" + this->getNickName() + "!~" + this->getNickName() + "@localhost" + " PART " + it->getName() + "\r\n");
-
             /*
-
             ":" + this->getNickName() + "!~" + this->getNickName() + "@localhost": Bu string parçası, iki nokta üst üste (:) ile başlar, ardından kullanıcının takma adı gelir (this->getNickName() ile alınır), "!~" ifadesi, tekrar kullanıcının takma adı ve son olarak "@localhost" ifadesi yer alır. Bu, IRC (Internet Relay Chat) gibi bazı protokollerde kullanıcı kimliğini belirtmek için yaygın bir format. Takma ad, bir kez kullanıcı adı ve bir kez 'gerçek ad' veya 'görünen ad' için kullanılıyor. @localhost kısmı, kullanıcının yerel makineden bağlandığını gösterir.
             
             " PART " + it->getName() + "\r\n": Bu string parçası, "PART" kelimesini, ardından sunucu veya kanalın adını (it->getName() ile alınır) ve son olarak bir carriage return ve newline dizisini (\r\n) içerir. IRC bağlamında, "PART" bir istemcinin bir kullanıcının bir kanaldan ayrılmak istediğini belirtmek için bir sunucuya gönderdiği bir komuttur. "PART" kelimesinden sonra gelen ad genellikle kullanıcının ayrılmak istediği kanalın adıdır.
