@@ -24,12 +24,11 @@ void User::sendMsg(std::string msg) const {
 }
 
 void User::closeConnection() {
-    this->quitAllChannels(); // tüm kanallardan çıkış
+    this->quitAllChannels();
     std::cout << MAGENTA << "Connection closed with client fd: " << this->getFd() << RESET << std::endl;
     close(this->getFd());
-    //silinen serverın dequelerdan silinmesi
     std::deque<int>::iterator index = std::find(Server::fds.begin(), Server::fds.end(), this->getFd());
-    Server::fds.erase(index); 
+    Server::fds.erase(index);
     std::deque<User>::iterator user = std::find(Server::users.begin(), Server::users.end(), *this);
     Server::users.erase(user);
 }
@@ -40,19 +39,15 @@ void User::quitAllChannels(void) {
         for (std::deque<User *>::iterator user = it->users.begin(); user != it->users.end(); user++) {
             if ((*user)->getFd() != this->getFd()) continue;
             it->sendMsg(":" + this->getNickName() + "!~" + this->getNickName() + "@localhost" + " PART " + it->getName() + "\r\n");
-            /*
-            ":" + this->getNickName() + "!~" + this->getNickName() + "@localhost": Bu string parçası, iki nokta üst üste (:) ile başlar, ardından kullanıcının takma adı gelir (this->getNickName() ile alınır), "!~" ifadesi, tekrar kullanıcının takma adı ve son olarak "@localhost" ifadesi yer alır. Bu, IRC (Internet Relay Chat) gibi bazı protokollerde kullanıcı kimliğini belirtmek için yaygın bir format. Takma ad, bir kez kullanıcı adı ve bir kez 'gerçek ad' veya 'görünen ad' için kullanılıyor. @localhost kısmı, kullanıcının yerel makineden bağlandığını gösterir.
-            
-            " PART " + it->getName() + "\r\n": Bu string parçası, "PART" kelimesini, ardından sunucu veya kanalın adını (it->getName() ile alınır) ve son olarak bir carriage return ve newline dizisini (\r\n) içerir. IRC bağlamında, "PART" bir istemcinin bir kullanıcının bir kanaldan ayrılmak istediğini belirtmek için bir sunucuya gönderdiği bir komuttur. "PART" kelimesinden sonra gelen ad genellikle kullanıcının ayrılmak istediği kanalın adıdır.
-            */
-            it->users.erase(user);   // dequedan o userı siler
+            it->users.erase(user);
             break;
         }
     }
 }
 
 void User::kickChannel(std::deque<std::string> const &cmd, std::string const &rawcmd) {
-    if (cmd.size() < 4 || cmd.at(2).empty()) {
+    if (cmd.size() < 3 || cmd.at(2).empty()) //burayi 3 yaptim
+    {
         this->sendMsg(":" + this->getNickName() + " 461 :Not Enough Parameters\r\n");
         return;
     }
@@ -68,17 +63,28 @@ void User::kickChannel(std::deque<std::string> const &cmd, std::string const &ra
     for (it = Server::channels.begin(); it != Server::channels.end(); it++) {
         if (it->getName() == lower(cmd.at(1))) {
             std::deque<std::string>::iterator op = std::find(it->operatorUsers.begin(), it->operatorUsers.end(), this->getNickName());
-            if (op == it->operatorUsers.end()) {
+            if (op == it->operatorUsers.end()) // operator kontrolü
+            {
                 this->sendMsg("482 " + this->getNickName() + " :You're not channel operator\r\n");
                 return;
             }
             for (std::deque<User *>::iterator user = it->users.begin(); user != it->users.end(); user++) {
-                if ((*user)->getNickName() == cmd.at(2)) {
-                    it->sendMsg(":" + this->getNickName() + "!~" + this->getNickName() + "@localhost KICK " + cmd.at(1) + " " + cmd.at(2) + " " + rawcmd.substr(rawcmd.find(":")) + "\r\n");
-                    it->users.erase(user);
+                std::cout << cmd.at(2) << " " << (*user)->getNickName() << std::endl;
+                if ((*user)->getNickName() == cmd.at(2))  // channelda kicklenecek userı bulma
+                {
+                    if(cmd.size() == 3)
+                    {
+                        it->sendMsg(":" + this->getNickName() + "!~" + this->getNickName() + "@localhost KICK " + cmd.at(1) + " " + cmd.at(2) + " " + "\r\n");
+                    }
+                    else
+                    {
+                       it->sendMsg(":" + this->getNickName() + "!~" + this->getNickName() + "@localhost KICK " + cmd.at(1) + " " + cmd.at(2) + " " + rawcmd.substr(rawcmd.find(":")) + "\r\n");         
+                    }
+                    it->users.erase(user); // dequedan temizleme
                     return;
                 }
-                if (user == it->users.end()) {
+                if (user == it->users.end()) //kicklenecek user kanalda yoksa
+                {
                     this->sendMsg("442 " + cmd.at(2) + " :Not on channel\r\n");
                     return;
                 }
@@ -88,7 +94,8 @@ void User::kickChannel(std::deque<std::string> const &cmd, std::string const &ra
 }
 
 void User::leaveChannel(std::deque<std::string> const &cmd) {
-    if (cmd.size() != 2) {
+    if (cmd.size() != 3) //burayi degistirdim!!!
+    {
         this->sendMsg(":" + this->getNickName() + " 461 :Not Enough Parameters\r\n");
         return;
     }
@@ -121,7 +128,8 @@ void User::joinChannel(std::string name, bool checkInviteOnly, std::string passw
                 return;
             }
             // Check chan limit
-            if (it->users.size() >= it->userLimit && !it->isOperator(this->getNickName())) {
+            if (it->users.size() >= it->userLimit && !it->isOperator(this->getNickName())) // 
+            {
                 this->sendMsg("471 " + this->getNickName() + " " + it->getName() + " :Cannot join Channel\r\n");
                 return;
             }
@@ -139,10 +147,10 @@ void User::joinChannel(std::string name, bool checkInviteOnly, std::string passw
             it->sendMsg(":" + this->getNickName() + "!~" + this->getNickName() + "@localhost" + " JOIN " + name + "\r\n");
 
             // RPL_TOPIC
-            if (it->topic != "")
+            if (it->topic != "") // topicde bir sey varsa onu user ekranindaki topice yazdiriyor
                 it->sendMsg("332 " + this->getNickName() + " " + name + " :" + it->topic + "\r\n");
 
-            // RPL_NAMREPLY
+            // RPL_NAMREPLY - namelerin listesi opeatorlerin basina @ ekler
             std::string userList;
             std::deque<User *>::iterator it2;
             for (it2 = it->users.begin(); it2 != it->users.end(); it2++) {
@@ -159,13 +167,14 @@ void User::joinChannel(std::string name, bool checkInviteOnly, std::string passw
             return;
         }
     }
+    //oyle bir kanal yoksa
     Server::addChannel(name, this->getNickName());
 
     this->joinChannel(name, checkInviteOnly, password);
 }
 
 void User::topic(std::deque<std::string> cmd, std::string rawcmd) {
-    if (cmd.size() < 2 || cmd[1].empty() || cmd[2].empty() || cmd[2][0] != ':') {
+    if (cmd.size() < 3 || cmd[1].empty() || cmd[2].empty() || cmd[2][0] != ':') {
         this->sendMsg(":" + this->getNickName() + " 461 :Not Enough Parameters\r\n");
         return;
     }
@@ -340,7 +349,7 @@ void User::mode(std::deque<std::string> const &cmd, std::string const &rawcmd) {
     } else if (cmd[2] == "-o" && cmd.size() == 4 && cmd.at(3).empty() == false) {
         if (!this->checkIsOperator(*it)) return;
         if (cmd.at(3) == this->getNickName()) {
-            it->sendMsg("ERROR: You can't remove yourself from operator list\r\n");
+            it->sendMsg("ERROR: User can't remove himself/herself from operator list\r\n");
             return;
         }
         std::deque<User *>::iterator us;

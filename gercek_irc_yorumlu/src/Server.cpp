@@ -321,15 +321,18 @@ void sendNoticeMsg(User &user, std::deque<std::string> &cmd, std::string rawcmd)
 }
 
 void sendPrivMsg(User &user, std::deque<std::string> &cmd, std::string rawcmd) {
-    if (cmd.size() == 1) {
+    if (cmd.size() == 1) // tek parametreli ise
+    {
         user.sendMsg("461 " + Server::name + " " + cmd.at(0) + " :Not Enough Parameters\r\n");
         return;
     }
-    if (cmd.size() == 2) {
+    if (cmd.size() == 2) // 2 parametreli ise
+    {
         user.sendMsg(":" + Server::name + " 412 :No text to send\r\n");
         return;
     }
-    if (cmd[2][0] != ':') {
+    if (cmd[2][0] != ':') //3. parametrenin basinda : yoksa
+    {
         user.sendMsg("ERROR :Invalid message format\r\n");
         return;
     }
@@ -421,7 +424,7 @@ bool Server::executeCommand(User &user, std::string &cmd) {
         }
         user.userName = cmds.at(1);
         std::ifstream file("asset/motd.txt");
-        std::string text;
+        std::string text = "\n";
         std::string line;
         while (std::getline(file, line))
             text += MAGENTA + line + RESET + "\n";

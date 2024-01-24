@@ -145,28 +145,33 @@ void sendNoticeMsg(User &user, std::deque<std::string> &cmd, std::string rawcmd)
     if (cmd.size() == 2) {
         return;
     }
-    if (cmd[2][0] != ':') {
+    if (cmd[2][0] != ':') //3. parametre basi : yoksa
+    {
         user.sendMsg("ERROR :Invalid message format\r\n");
         return;
     }
     int i = 0;
-    while (rawcmd.at(i) != ':')
+    while (rawcmd.at(i) != ':') //:'den sonrasini almak için
         i++;
     cmd.at(2) = rawcmd.substr(i + 1, (rawcmd.size() - i));
 
-    if (cmd[1][0] == '#') {
+    if (cmd[1][0] == '#') // kanal mı
+    {
         for (std::deque<Channel>::iterator it = Server::channels.begin(); it != Server::channels.end(); it++) {
             if (it->getName() == lower(cmd.at(1))) {
-                for (std::deque<User *>::iterator it2 = it->users.begin(); it2 != it->users.end(); it2++) {
+                for (std::deque<User *>::iterator it2 = it->users.begin(); it2 != it->users.end(); it2++) 
+                {
                     if ((*it2)->getFd() == user.fd) {
-                        it->sendMsgFromUser(":" + user.nickName + " NOTICE " + cmd.at(1) + " :" + cmd.at(2) + "\r\n", user);
+                        it->sendMsgFromUser(":" + user.nickName + " NOTICE " + cmd.at(1) + " :" + cmd.at(2) + "\r\n", user); //kanaldaki tüm kullanicilara notice uygular
                         return;
                     }
                 }
                 return;
             }
         }
-    } else {
+    } 
+    else 
+    {
         for (std::deque<User>::iterator it = Server::users.begin(); it != Server::users.end(); it++)
             if (it->getNickName() == cmd.at(1)) {
                 it->sendMsg(":" + user.nickName + " NOTICE " + it->nickName + " : " + cmd.at(2) + "\r\n");
@@ -190,30 +195,36 @@ void sendPrivMsg(User &user, std::deque<std::string> &cmd, std::string rawcmd) {
         return;
     }
     int i = 0;
-    while (rawcmd.at(i) != ':')
+    while (rawcmd.at(i) != ':') //:'den sonraki kısmı almak için 
         i++;
     cmd.at(2) = rawcmd.substr(i + 1, (rawcmd.size() - i));
 
-    if (cmd[1][0] == '#') {
+    if (cmd[1][0] == '#') //eger channela gönderilecekse
+    {
         for (std::deque<Channel>::iterator it = Server::channels.begin(); it != Server::channels.end(); it++) {
-            if (it->getName() == lower(cmd.at(1))) {
-                for (std::deque<User *>::iterator it2 = it->users.begin(); it2 != it->users.end(); it2++) {
+            if (it->getName() == lower(cmd.at(1))) //dogru channel bulunduysa
+            {
+                for (std::deque<User *>::iterator it2 = it->users.begin(); it2 != it->users.end(); it2++) //dogru kullanici bulunur
+                {
                     if ((*it2)->getFd() == user.fd) {
-                        it->sendMsgFromUser(":" + user.nickName + " PRIVMSG " + cmd.at(1) + " :" + cmd.at(2) + "\r\n", user);
+                        it->sendMsgFromUser(":" + user.nickName + " PRIVMSG " + cmd.at(1) + " :" + cmd.at(2) + "\r\n", user); // // channelin tum userlarina mesajı gönder
                         return;
                     }
                 }
-                user.sendMsg(":" + Server::name + " 404 " + cmd.at(1) + ": Cannot send to CHANNEL\r\n");
+                user.sendMsg(":" + Server::name + " 404 " + cmd.at(1) + ": Cannot send to CHANNEL\r\n"); // channel varsa ama mesajı gönderen user channelda degilse
                 return;
             }
         }
-        user.sendMsg(":" + Server::name + " 403 " + cmd.at(1) + ": No such CHANNEL\r\n");
-    } else {
+        user.sendMsg(":" + Server::name + " 403 " + cmd.at(1) + ": No such CHANNEL\r\n"); // kanal yoksa
+    } 
+    else {
         for (std::deque<User>::iterator it = Server::users.begin(); it != Server::users.end(); it++)
-            if (it->getNickName() == cmd.at(1)) {
+            if (it->getNickName() == cmd.at(1)) //mesaji gönderilecek user clientler icinden aranir bulunursa alttaki gönderilir ve return ile cikar
+            {
                 it->sendMsg(":" + user.nickName + " PRIVMSG " + it->nickName + " : " + cmd.at(2) + "\r\n");
                 return;
             }
+        // kullanici bulunamazsa
         user.sendMsg(":" + Server::name + " 401 " + user.nickName + ": No such NICK\r\n");
         return;
     }
@@ -280,7 +291,7 @@ bool Server::executeCommand(User &user, std::string &cmd) {
         }
         user.userName = cmds.at(1);
         std::ifstream file("asset/motd.txt");
-        std::string text;
+        std::string text = "\n";
         std::string line;
         while (std::getline(file, line))
             text += MAGENTA + line + RESET + "\n";
@@ -298,7 +309,7 @@ bool Server::executeCommand(User &user, std::string &cmd) {
             user.sendMsg(":" + lower(cmds.at(1)) + " 476 :Bad Channel Mask\r\n");
             return false;
         }
-        std::string password = cmds.size() == 3 ? cmds.at(2) : "";
+        std::string password = cmds.size() == 3 ? cmds.at(2) : ""; // 3 parametreli ise passwordu al
         std::string channelName = cmds.at(1);
         user.joinChannel(lower(channelName), true, password);
     } else if (cmds.at(0) == "PART" && user.getIsAuth() == true)

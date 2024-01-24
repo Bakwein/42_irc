@@ -46,7 +46,7 @@ void User::quitAllChannels(void) {
 }
 
 void User::kickChannel(std::deque<std::string> const &cmd, std::string const &rawcmd) {
-    if (cmd.size() < 3 || cmd.at(2).empty()) //burayi 3 yaptim
+    if (cmd.size() < 3 || cmd.at(2).empty()) 
     {
         this->sendMsg(":" + this->getNickName() + " 461 :Not Enough Parameters\r\n");
         return;
@@ -91,8 +91,7 @@ void User::kickChannel(std::deque<std::string> const &cmd, std::string const &ra
 }
 
 void User::leaveChannel(std::deque<std::string> const &cmd) {
-    std::cout << "cmd size ->" << cmd.size() << std::endl;
-    if (cmd.size() < 2) //burayi degistirdim!!!
+    if (cmd.size() != 3)
     {
         this->sendMsg(":" + this->getNickName() + " 461 :Not Enough Parameters\r\n");
         return;
@@ -126,7 +125,8 @@ void User::joinChannel(std::string name, bool checkInviteOnly, std::string passw
                 return;
             }
             // Check chan limit
-            if (it->users.size() >= it->userLimit && !it->isOperator(this->getNickName())) {
+            if (it->users.size() >= it->userLimit && !it->isOperator(this->getNickName())) // 
+            {
                 this->sendMsg("471 " + this->getNickName() + " " + it->getName() + " :Cannot join Channel\r\n");
                 return;
             }
@@ -170,8 +170,13 @@ void User::joinChannel(std::string name, bool checkInviteOnly, std::string passw
 }
 
 void User::topic(std::deque<std::string> cmd, std::string rawcmd) {
-    if (cmd.size() < 2 || cmd[1].empty() || cmd[2].empty() || cmd[2][0] != ':') {
+    if (cmd.size() < 3 || cmd[1].empty() || cmd[2].empty() || cmd[2][0] != ':') {
         this->sendMsg(":" + this->getNickName() + " 461 :Not Enough Parameters\r\n");
+        return;
+    }
+    if(cmd[1][0] != '#')
+    {
+        this->sendMsg(":" + Server::name + " 403 " + this->nickName + " " + lower(cmd.at(1)) + " :No such channel\r\n");
         return;
     }
     std::deque<Channel>::iterator it;
@@ -255,7 +260,6 @@ bool User::checkIsOperator(Channel &chan) {
 }
 
 void User::mode(std::deque<std::string> const &cmd, std::string const &rawcmd) {
-    (void)rawcmd;
     if (cmd.size() == 2 && cmd.at(1).empty() == false && cmd[1][0] == '#') {
         std::deque<Channel>::iterator it1;
         for (it1 = Server::channels.begin(); it1 != Server::channels.end(); it1++) {
